@@ -63,8 +63,13 @@ pip install -r requirements.txt
 ## 🚀 Anwendung starten
 
 ```bash
-python main.py
+streamlit run main.py
 ```
+Skript Altenativen
+	Windows: start_prompt_database.bat
+	Unix: 
+		chmod +x start_prompt_database.sh
+		./start_prompt_database.sh
 
 ➡ Streamlit öffnet sich automatisch im Browser (`http://localhost:8501`)
 
