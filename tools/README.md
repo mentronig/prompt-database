@@ -1,22 +1,23 @@
-# 🧹 PromptDatabase – Cleanup Tool
+# 🧹 PromptDatabase – Cleanup Tool (v0.8)
 
-Dieses Projekt enthält ein optionales CLI-Werkzeug zur automatischen Bereinigung von überflüssigen Python-Dateien – insbesondere temporäre oder versehentlich erstellte Skripte wie `klasse1.py`, `test.py`, `experiment_alt.py` etc.
-
----
-
-## ⚙️ Features des Cleanup-Skripts
-
-| Funktion                | Beschreibung                                                                 |
-|-------------------------|------------------------------------------------------------------------------|
-| 🔍 Dateinamens-Scanner  | Erkennt `.py`-Dateien mit unerwünschten Namen (z. B. `test`, `klasse`, etc.) |
-| 📏 Filter               | Optional nach Größe (`--min-size`) und Alter (`--min-age`) filterbar         |
-| 💾 Backup               | ZIP-Backup aller zu löschenden Dateien vor dem Entfernen (`--backup`)        |
-| ❓ Interaktiv oder Automatisch | Interaktives Löschen oder direkt mit `--force`                          |
-| 📝 Berichte             | Generiert HTML- und Markdown-Reports über gefundene Dateien                  |
+Ein praktisches CLI-Tool zur Bereinigung von überflüssigen Python-Dateien – ideal zur Projektpflege in Visual Studio, VS Code und Co.
 
 ---
 
-## 📁 Speicherort des Skripts
+## ✨ Features in Version 0.8
 
-Das Skript befindet sich im Verzeichnis:
-tools/
+| Funktion               | Beschreibung                                                                 |
+|------------------------|------------------------------------------------------------------------------|
+| 🔍 Schlüsselwort-Scan   | Erkennt `.py`-Dateien mit Namen wie `test`, `tmp`, `klasse`, `alt` etc.     |
+| 📏 Filter               | Auswahl nach Dateigröße (`--min-size`) und Alter (`--min-age`)              |
+| 💾 Backup               | ZIP-Archiv aller Dateien vor dem Löschen (`--backup`)                       |
+| 🧪 Dry-Run-Modus        | Vorschau-Modus ohne Änderungen (`--dry-run`)                                 |
+| 📝 Logging              | Alle Aktionen werden in `cleanup.log` protokolliert                         |
+| 📊 Berichte             | HTML + Markdown-Report über verdächtige Dateien                             |
+
+---
+
+## 📁 Speicherort
+
+Das Skript befindet sich unter:
+

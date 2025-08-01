@@ -23,6 +23,7 @@ settings/theme.json
 *.bak
 *.tmp
 *.log
+cleanup.log
 
 # Testdatenbanken
 test_database.json

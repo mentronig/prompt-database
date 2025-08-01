@@ -1,83 +1,98 @@
 """
 cleanup_suggestions.py
 
-Ein CLI-Tool zur Erkennung und optionalen Löschung potenziell überflüssiger Python-Dateien
-(z. B. "test.py", "klasse1.py", "experiment_alt.py").
+Cleanup-Tool zur Erkennung und optionalen Löschung überflüssiger Python-Dateien.
+Version 0.8 – mit Logging & Dry-Run-Modus
+
+Autor: Roland + Alisa (AI)
+Stand: 2025-08-01
 
 Funktionen:
-- Erkennung verdächtiger Dateien basierend auf Dateinamen
-- Filter nach Dateigröße (--min-size) und Alter (--min-age)
-- Backup der zu löschenden Dateien in ZIP-Archiv (--backup)
-- Automatisches Löschen ohne Nachfrage (--force)
-- Berichte als Markdown und HTML
+- Erkennung verdächtiger .py-Dateien anhand von Namen (test, tmp, klasse etc.)
+- Filterung nach Mindestgröße (--min-size) und Alter (--min-age)
+- Optionales ZIP-Backup vor Löschung (--backup)
+- Optionaler Dry-Run (Simulationsmodus ohne Änderungen)
+- Logging aller Aktionen in cleanup.log
+- Berichte in Markdown und HTML
 
-Beispiele:
-    # Standardausführung (interaktiv mit Nachfragen)
-    python cleanup_suggestions.py
 
-    # Dateien vor dem Löschen sichern
-    python cleanup_suggestions.py --backup
+## ⚙️ Beispielaufrufe
 
-    # Automatisches Löschen (ohne Rückfrage), mit Backup
-    python cleanup_suggestions.py --force --backup
 
-    # Nur Dateien >2KB und älter als 7 Tage
-    python cleanup_suggestions.py --min-size 2 --min-age 7
+# Interaktiver Modus (Standard)
+python tools/cleanup_suggestions.py
+
+# Nur Dateien über 2 KB und älter als 7 Tage
+python tools/cleanup_suggestions.py --min-size 2 --min-age 7
+
+# Alles automatisch löschen mit Backup
+python tools/cleanup_suggestions.py --force --backup
+
+# Nur anzeigen, was gelöscht würde (Simulation)
+python tools/cleanup_suggestions.py --dry-run
+
+# Kombination: Backup + direktes Löschen + Filter
+python tools/cleanup_suggestions.py --force --backup --min-size 3 --min-age 14
 """
 
 import os
 import argparse
 import time
 import zipfile
+import logging
 from datetime import datetime
 
 # === Konfiguration ===
 
-# Dateinamen, die auf verdächtige Dateien hinweisen
 UNWANTED_KEYWORDS = [
-    "test", "experiment", "alt", "demo", "sample",
-    "tmp", "old", "backup", "klasse"
+    "test", "experiment", "alt", "demo", "sample", "tmp", "old", "backup", "klasse"
 ]
-
-# Verzeichnisse, die ignoriert werden sollen
 EXCLUDED_DIRS = {".git", "__pycache__", ".venv", "env", "venv", ".streamlit"}
-
-# Nur auf diese Dateitypen prüfen
 TARGET_EXTENSIONS = {".py"}
 
-# Ausgabeberichte
 REPORT_MD = "cleanup_report.md"
 REPORT_HTML = "cleanup_report.html"
-
-# Backup-Verzeichnis
 BACKUP_DIR = ".backup"
+LOG_FILE = "cleanup.log"
+
+# === Logging Setup ===
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+PROTECTED_PATHS = [
+    "tests/test_prompt_repository.py",
+    "utils/backup.py"
+]
+
+def is_protected(path):
+    return any(path.endswith(p) or path.replace("\\", "/").endswith(p) for p in PROTECTED_PATHS)
 
 
 # === Datei-Suche ===
 
 def find_unwanted_files(project_root=".", min_size_kb=0, min_age_days=0):
     """
-    Durchsucht das Projektverzeichnis nach potenziell überflüssigen Python-Dateien.
+    Scannt das Projekt nach verdächtigen .py-Dateien basierend auf:
+    - Namen mit bestimmten Schlüsselwörtern
+    - Größe und Alter
 
-    :param project_root: Basisverzeichnis (default: aktuelles Verzeichnis)
-    :param min_size_kb: Mindestgröße in Kilobyte
-    :param min_age_days: Mindestalter in Tagen
-    :return: Liste verdächtiger Dateipfade
+    Rückgabe: Liste der verdächtigen Dateipfade
     """
     suggestions = []
     now = time.time()
-    min_age_secs = min_age_days * 86400  # Sekunden pro Tag
+    min_age_secs = min_age_days * 86400
 
     for root, dirs, files in os.walk(project_root):
-        # Unerwünschte Verzeichnisse ignorieren
         dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
 
         for file in files:
-            # Nur .py-Dateien prüfen
             if not any(file.endswith(ext) for ext in TARGET_EXTENSIONS):
                 continue
-
-            # Nur Dateien mit verdächtigen Namen
             if not any(keyword in file.lower() for keyword in UNWANTED_KEYWORDS):
                 continue
 
@@ -85,21 +100,18 @@ def find_unwanted_files(project_root=".", min_size_kb=0, min_age_days=0):
             size_kb = os.path.getsize(file_path) / 1024
             age_secs = now - os.path.getmtime(file_path)
 
-            # Filter prüfen
             if size_kb >= min_size_kb and age_secs >= min_age_secs:
                 suggestions.append(file_path)
-
+                logging.info(f"Datei zur Löschung vorgeschlagen: {file_path}")
     return suggestions
-
 
 # === Backup ===
 
 def create_backup(files):
     """
-    Erstellt ein ZIP-Archiv aller Dateien, die gelöscht werden sollen.
+    Erstellt ein ZIP-Archiv aller zu löschenden Dateien.
 
-    :param files: Liste der zu sichernden Dateien
-    :return: Pfad zur ZIP-Datei
+    Rückgabe: Pfad zur ZIP-Datei
     """
     if not files:
         return None
@@ -112,42 +124,46 @@ def create_backup(files):
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         for f in files:
             try:
-                # Nur relativen Pfad speichern, keine absoluten
                 zipf.write(f, arcname=os.path.relpath(f, "."))
-                print(f"📦 Gesichert: {f}")
+                logging.info(f"Backup gespeichert: {f}")
             except Exception as e:
-                print(f"⚠️  Fehler beim Sichern: {f} → {e}")
-
+                logging.error(f"Fehler beim Backup: {f} → {e}")
     return zip_path
 
+# === Löschung ===
 
-# === Löschen ===
-
-def delete_files(files, force=False):
-    """
-    Löscht die übergebenen Dateien – optional ohne Nachfrage.
-
-    :param files: Liste der zu löschenden Dateien
-    :param force: Wenn True, werden alle Dateien ohne Rückfrage gelöscht
-    """
+def delete_files(files, force=False, dry_run=False):
     for f in files:
+        if is_protected(f):
+            print(f"⛔ Geschützte Datei übersprungen: {f}")
+            logging.info(f"⛔ Geschützte Datei übersprungen: {f}")
+            continue
+
+        if dry_run:
+            print(f"[Dry-Run] 🔎 Datei wäre gelöscht worden: {f}")
+            logging.info(f"[Dry-Run] Datei markiert zur Löschung: {f}")
+            continue
+
         if not force:
             confirm = input(f"❓ Datei löschen: {f}? (j/n): ").strip().lower()
             if confirm != "j":
                 print(f"⏭️ Übersprungen: {f}")
+                logging.info(f"Benutzer übersprang Datei: {f}")
                 continue
+
         try:
             os.remove(f)
             print(f"✅ Gelöscht: {f}")
+            logging.info(f"Datei gelöscht: {f}")
         except Exception as e:
             print(f"❌ Fehler beim Löschen: {f} → {e}")
-
+            logging.error(f"Fehler beim Löschen: {f} → {e}")
 
 # === Berichte ===
 
 def generate_markdown_report(file_list):
     """
-    Erstellt einen Markdown-Bericht der gefundenen Dateien.
+    Erstellt einen Markdown-Bericht zur Übersicht.
     """
     with open(REPORT_MD, "w", encoding="utf-8") as md:
         md.write("# 🧹 Cleanup-Vorschlag\n\n")
@@ -158,10 +174,9 @@ def generate_markdown_report(file_list):
         for f in file_list:
             md.write(f"| `{f}` | _Vorgeschlagen zur Löschung_ |\n")
 
-
 def generate_html_report(file_list):
     """
-    Erstellt einen HTML-Bericht der gefundenen Dateien.
+    Erstellt einen HTML-Bericht mit Tabelle.
     """
     with open(REPORT_HTML, "w", encoding="utf-8") as html:
         html.write("<html><head><meta charset='UTF-8'><title>Cleanup Report</title></head><body>")
@@ -175,18 +190,19 @@ def generate_html_report(file_list):
             html.write("</table>")
         html.write("</body></html>")
 
-
 # === Hauptprogramm ===
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cleanup-Skript für unerwünschte Python-Dateien")
     parser.add_argument("--force", action="store_true", help="Alle Dateien ohne Rückfrage löschen")
     parser.add_argument("--backup", action="store_true", help="Dateien vor dem Löschen als ZIP sichern")
+    parser.add_argument("--dry-run", action="store_true", help="Nur anzeigen, nichts löschen")
     parser.add_argument("--min-size", type=int, default=0, help="Nur Dateien größer als X KB einbeziehen")
     parser.add_argument("--min-age", type=int, default=0, help="Nur Dateien älter als X Tage einbeziehen")
     args = parser.parse_args()
 
     print("\n🔍 Starte Bereinigungsscanner...\n")
+    logging.info("Cleanup gestartet")
 
     unwanted_files = find_unwanted_files(
         project_root=".",
@@ -205,11 +221,17 @@ if __name__ == "__main__":
         print(f" - Markdown: {REPORT_MD}")
         print(f" - HTML:     {REPORT_HTML}\n")
 
-        if args.backup:
-            print("📦 Starte Backup...\n")
+        if args.dry_run:
+            print("🧪 Dry-Run aktiviert: Es wird nichts gelöscht.")
+        elif args.backup:
+            print("📦 Starte Backup...")
             zip_result = create_backup(unwanted_files)
             print(f"\n🗂 Backup gespeichert unter: {zip_result}\n")
+            logging.info(f"Backup ZIP erstellt: {zip_result}")
 
-        delete_files(unwanted_files, force=args.force)
+        delete_files(unwanted_files, force=args.force, dry_run=args.dry_run)
     else:
         print("✅ Keine verdächtigen Dateien gefunden.")
+        logging.info("Keine verdächtigen Dateien gefunden.")
+
+    logging.info("Cleanup abgeschlossen.\n")
