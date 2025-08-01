@@ -18,6 +18,7 @@ __pycache__/
 settings/theme.json
 
 # Backup-Dateien
+.backup/
 *.zip
 *.bak
 *.tmp
@@ -25,3 +26,6 @@ settings/theme.json
 
 # Testdatenbanken
 test_database.json
+
+# Von VS default Pyh Dateien
+Klasse*.py
