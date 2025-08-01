@@ -1,0 +1,27 @@
+# Bytecode und temporäre Dateien
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE-spezifisch (Visual Studio, VS Code, PyCharm)
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Streamlit & Cache
+.streamlit/
+.settings/
+settings/theme.json
+
+# Backup-Dateien
+*.zip
+*.bak
+*.tmp
+*.log
+
+# Testdatenbanken
+test_database.json
