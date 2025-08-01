@@ -28,5 +28,10 @@ cleanup.log
 # Testdatenbanken
 test_database.json
 
+#generierte Dateien ausklammern
+exported_prompts.csv
+cleanup_report.html
+cleanup_report.md
+
 # Von VS default Pyh Dateien
 Klasse*.py
